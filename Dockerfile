@@ -14,6 +14,10 @@ WORKDIR /app
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    ENVIRONMENT=production \
+    GCP_PROJECT_ID=gen-lang-client-0230474681 \
+    BQ_DATASET=cdr_tracking_prod \
+    BQ_LOCATION=US \
     PORT=8080
 
 COPY backend/requirements.txt ./

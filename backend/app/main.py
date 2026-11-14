@@ -22,7 +22,12 @@ app.add_middleware(
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint for Cloud Run and container probes."""
-    return {"status": "healthy", "environment": settings.environment}
+    return {
+        "status": "healthy",
+        "environment": settings.environment,
+        "gcp_project_id": settings.gcp_project_id,
+        "bq_dataset": settings.bq_dataset,
+    }
 
 
 app.include_router(api_router, prefix="/api")

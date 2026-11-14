@@ -3,6 +3,8 @@
 .env
 .env.*
 !.env.example
+sa-cdr-tracking.json
+sa-*.json
 __pycache__/
 *.py[cod]
 .venv/

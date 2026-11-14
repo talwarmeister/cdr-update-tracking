@@ -3,11 +3,15 @@
 ## Decisions
 - **Day-to-day local dev:** Run FastAPI (`uvicorn app.main:app --reload`) and Vite (`npm run dev`) **natively** for faster HMR, lower overhead, and direct IDE/debugger integration.
 - **Pre-deployment verification:** Run `docker build` / `docker run` (or `docker compose up`) to verify the containerized Linux build works end-to-end before deploying to Cloud Run.
-- **Database choice (Neon vs. Cloud SQL):**
-  - **Neon (Serverless Postgres — Recommended for \$0/month):** Free tier, scales to zero, supports Git-like database branching (`dev` branch for local `.env`, `main` branch for Cloud Run prod) so dev and prod run the exact same Postgres engine without SQLite/Postgres dialect mismatches. Connects via `DATABASE_URL`.
-  - **GCP Cloud SQL (Alternative if 100% GCP-native is required):** Managed Postgres/MySQL with native Cloud Run Unix socket/Auth Proxy integration and automated backups, but **does not scale to zero** (~\$7–\$10+/month minimum even with zero traffic).
+- **Database choice — GCP BigQuery (Current Decision):**
+  - **Why BigQuery now:** 100% GCP-native, **$0/month** within the free tier (10 GB active storage + 1 TB queries/month, plenty for low-volume CDR tracking), SQL support, and **keyless IAM authentication** (`gcloud auth application-default login` locally; Cloud Run Service Account with `roles/bigquery.dataEditor` and `roles/bigquery.jobUser` in prod—no DB passwords or `DATABASE_URL` needed).
+  - **Environment separation & design:** Use separate datasets (`cdr_tracking_dev` locally vs. `cdr_tracking_prod` in Cloud Run via `BQ_DATASET`). Mitigate BigQuery's ~0.5–1.5s query overhead with lightweight in-memory TTL caching in FastAPI, and use append-only snapshots or SQL `MERGE` queries rather than legacy streaming inserts.
+  - **Future evolution options (if millisecond OLTP response times are needed later):**
+    - **Cloud Firestore:** 100% GCP-native serverless document DB, $0/month free tier (1 GiB storage + 50k reads/20k writes per day), ~10–30ms single-document reads/upserts, keyless IAM auth.
+    - **Neon (Serverless Postgres):** $0/month free tier, scales to zero, supports Git-like database branching (`dev` vs. `main`), full relational Postgres with millisecond OLTP queries via `DATABASE_URL`.
+    - **GCP Cloud SQL (Postgres/MySQL):** 100% GCP-native managed relational DB with millisecond OLTP latency, automated backups, and native Cloud Run Auth Proxy integration (does not scale to zero; ~$7–$10+/month minimum).
   - **Container storage:** Do **not** store SQLite or data files inside the Cloud Run container; Cloud Run disks are ephemeral and wiped on scale-to-zero or restart.
-- **Secrets management:** Use `.env` locally (git-ignored) and **GCP Secret Manager** in production (`--set-secrets=DATABASE_URL=DATABASE_URL:latest` on Cloud Run, \$0/month within free tier).
+- **Secrets management:** Use `.env` locally (git-ignored) and **GCP Secret Manager** in production (`--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` on Cloud Run, $0/month within free tier).
 
 ## 1. ~~Local Environment Setup~~
 - [x] ~~Copy `.env.example` to `.env` and populate `MARKET_DATA_API_KEY` and any other secrets.~~
@@ -16,15 +20,16 @@
 - [x] ~~Run backend tests (`pytest`) in `backend/` to verify `/health` and `/api/cdrs`.~~
 
 ## 2. Core Feature Implementation
-- [ ] Implement CDR source tracking / scraping or API integration in `backend/app/api/routes.py` (or dedicated service modules).
+- [x] ~~Add `google-cloud-bigquery` to `backend/requirements.txt` and configure `GCP_PROJECT_ID` / `BQ_DATASET` in `backend/app/config.py` and `.env.example`.~~
+- [ ] Implement CDR source tracking / scraping or API integration with BigQuery persistence and in-memory TTL caching in `backend/app/api/routes.py` (or dedicated service modules).
 - [ ] Populate `MARKET_DATA_API_KEY` in `.env` and implement live market data fetching for CDR symbols using `httpx`.
 - [ ] Build out the React UI in `frontend/src/App.tsx` to display newly created CDRs and live market data.
 
-## 3. GCP Cloud Run & Database Deployment
-- [ ] Create Neon project with `main` (prod) and `dev` (local) branches (or provision a GCP Cloud SQL Postgres instance if choosing 100% GCP-native).
+## 3. GCP Cloud Run & BigQuery Deployment
+- [x] ~~Create BigQuery datasets `cdr_tracking_dev` (local) and `cdr_tracking_prod` (Cloud Run) in your GCP project.~~
+- [x] ~~Configure `sa-cdr-tracking` service account (`GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` for local dev; `--service-account` and `--set-env-vars` in `cloudbuild.yaml` for Cloud Run).~~
 - [ ] Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.
-- [ ] Store prod `DATABASE_URL` and `MARKET_DATA_API_KEY` in GCP Secret Manager and grant the Cloud Run service account `roles/secretmanager.secretAccessor`.
+- [ ] Store prod `MARKET_DATA_API_KEY` in GCP Secret Manager, grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor`, and add `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` to `cloudbuild.yaml`.
 - [ ] Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`.
-- [ ] Update `cloudbuild.yaml` `gcloud run deploy` args with `--set-secrets=DATABASE_URL=DATABASE_URL:latest,MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest`.
 - [ ] Deploy with `gcloud builds submit --config cloudbuild.yaml` and verify the live `/health` endpoint.
 

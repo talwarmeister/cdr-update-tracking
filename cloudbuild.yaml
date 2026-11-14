@@ -2,6 +2,8 @@ substitutions:
   _REGION: us-central1
   _REPOSITORY: cdr-tracking-repo
   _SERVICE_NAME: cdr-update-tracking
+  _BQ_DATASET: cdr_tracking_prod
+  _BQ_LOCATION: US
 
 steps:
   - name: "gcr.io/cloud-builders/docker"
@@ -34,6 +36,10 @@ steps:
         "--platform",
         "managed",
         "--allow-unauthenticated",
+        "--service-account",
+        "sa-cdr-tracking@${PROJECT_ID}.iam.gserviceaccount.com",
+        "--set-env-vars",
+        "ENVIRONMENT=production,GCP_PROJECT_ID=${PROJECT_ID},BQ_DATASET=${_BQ_DATASET},BQ_LOCATION=${_BQ_LOCATION}",
       ]
 
 images:
