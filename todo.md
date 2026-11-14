@@ -20,16 +20,16 @@
 - [x] ~~Run backend tests (`pytest`) in `backend/` to verify `/health` and `/api/cdrs`.~~
 
 ## 2. Core Feature Implementation
-- [ ] Add `google-cloud-bigquery` to `backend/requirements.txt` and configure `GCP_PROJECT_ID` / `BQ_DATASET` in `backend/app/config.py` and `.env.example`.
+- [x] ~~Add `google-cloud-bigquery` to `backend/requirements.txt` and configure `GCP_PROJECT_ID` / `BQ_DATASET` in `backend/app/config.py` and `.env.example`.~~
 - [ ] Implement CDR source tracking / scraping or API integration with BigQuery persistence and in-memory TTL caching in `backend/app/api/routes.py` (or dedicated service modules).
 - [ ] Populate `MARKET_DATA_API_KEY` in `.env` and implement live market data fetching for CDR symbols using `httpx`.
 - [ ] Build out the React UI in `frontend/src/App.tsx` to display newly created CDRs and live market data.
 
 ## 3. GCP Cloud Run & BigQuery Deployment
-- [ ] Create BigQuery datasets `cdr_tracking_dev` (local) and `cdr_tracking_prod` (Cloud Run) in your GCP project.
-- [ ] Ensure GCP project has BigQuery, Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.
-- [ ] Grant the Cloud Run service account `roles/bigquery.dataEditor`, `roles/bigquery.jobUser`, and `roles/secretmanager.secretAccessor`, and store prod `MARKET_DATA_API_KEY` in GCP Secret Manager.
+- [x] ~~Create BigQuery datasets `cdr_tracking_dev` (local) and `cdr_tracking_prod` (Cloud Run) in your GCP project.~~
+- [x] ~~Configure `sa-cdr-tracking` service account (`GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` for local dev; `--service-account` and `--set-env-vars` in `cloudbuild.yaml` for Cloud Run).~~
+- [ ] Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.
+- [ ] Store prod `MARKET_DATA_API_KEY` in GCP Secret Manager, grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor`, and add `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` to `cloudbuild.yaml`.
 - [ ] Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`.
-- [ ] Update `cloudbuild.yaml` `gcloud run deploy` args with `--set-env-vars=GCP_PROJECT_ID=$PROJECT_ID,BQ_DATASET=cdr_tracking_prod` and `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest`.
 - [ ] Deploy with `gcloud builds submit --config cloudbuild.yaml` and verify the live `/health` endpoint.
 

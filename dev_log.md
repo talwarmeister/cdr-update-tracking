@@ -25,7 +25,8 @@
 | `backend/requirements.txt` | Pinned Python dependencies (`fastapi`, `uvicorn[standard]`, `httpx`, `pydantic-settings`, `pytest`). |
 | `backend/app/__init__.py` | Marks `app` as a Python package. |
 | `backend/app/main.py` | FastAPI entry point: CORS setup, `/health` endpoint, `/api` router mount, and production static file serving. |
-| `backend/app/config.py` | Environment variable loading and validation via `pydantic-settings`. |
+| `backend/app/config.py` | Environment variable loading and validation via `pydantic-settings` (including `GCP_PROJECT_ID`, `BQ_DATASET`, `BQ_LOCATION`, and optional local `GOOGLE_APPLICATION_CREDENTIALS`). |
+| `backend/app/db.py` | BigQuery client helper (`get_bq_client`) and dataset provisioning script (`ensure_datasets`) for `cdr_tracking_dev` and `cdr_tracking_prod`. |
 | `backend/app/api/__init__.py` | Marks `api` as a Python package. |
 | `backend/app/api/routes.py` | Starter API endpoints (`/api/cdrs`, `/api/market-data`) for CDR tracking and live market data. |
 | `backend/tests/test_main.py` | Smoke tests for `/health` and starter API endpoints. |
@@ -40,4 +41,14 @@
 | `frontend/src/main.tsx` | React DOM entry point rendering `<App />`. |
 | `frontend/src/App.tsx` | Starter UI component fetching from `/api/cdrs` and displaying status. |
 | `frontend/src/App.css` | Basic starter layout styling. |
+
+---
+
+## 2026-11-14 — BigQuery Database Setup & Environment Routing
+
+- **Database Selection:** Adopted **Google Cloud BigQuery** (`google-cloud-bigquery`) in project `gen-lang-client-0230474681` as the primary datastore, with `cdr_tracking_dev` for local development and `cdr_tracking_prod` for Cloud Run production.
+- **Authentication:**
+  - **Local development:** Uses `GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` (git-ignored and docker-ignored).
+  - **Cloud Run production:** Uses keyless IAM authentication via `--service-account=sa-cdr-tracking@${PROJECT_ID}.iam.gserviceaccount.com` in `cloudbuild.yaml`.
+
 

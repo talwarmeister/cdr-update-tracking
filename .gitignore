@@ -20,6 +20,8 @@ ENV/
 .env
 .env.*
 !.env.example
+sa-cdr-tracking.json
+sa-*.json
 
 # Node / React / Vite
 node_modules/
