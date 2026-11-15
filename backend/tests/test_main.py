@@ -1,6 +1,9 @@
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.cdr_sync import invalidate_cdr_cache
 
 client = TestClient(app)
 
@@ -15,7 +18,25 @@ def test_health_check() -> None:
 
 
 def test_list_cdrs() -> None:
-    response = client.get("/api/cdrs")
+    invalidate_cdr_cache()
+    sample_rows = [
+        {
+            "symbol": "AMZN",
+            "name": "Amazon.com CDR (CAD Hedged)",
+            "issuer": "CIBC",
+            "country": "US",
+            "source": "cibc_directory",
+            "is_active": True,
+            "is_new": False,
+        }
+    ]
+    with patch("app.services.cdr_sync.get_bq_client"), patch(
+        "app.services.cdr_sync._read_cdr_rows_sync", return_value=sample_rows
+    ):
+        response = client.get("/api/cdrs")
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["count"] == 1
+    assert payload["items"][0]["symbol"] == "AMZN"
 
