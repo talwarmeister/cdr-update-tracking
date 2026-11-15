@@ -35,5 +35,5 @@
 - [ ] Build & deploy with Cloud Build and verify the live `/health` endpoint:
   - `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`
   - *(Note: If Cloud Build's deploy step asks for impersonation permissions, grant the Cloud Build service account `roles/iam.serviceAccountUser` on `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com`.)*
-- [ ] Configure a daily **Cloud Scheduler** HTTP job calling `POST /api/cdrs/sync?trigger=scheduler` so Cloud Run syncs daily even when scaled to zero.
+- [ ] Connect GitHub `main` branch to a **Cloud Build Trigger** (`/cloudbuild.yaml`) for automatic deployments on merge, and configure a daily **Cloud Scheduler** HTTP job calling `POST /api/cdrs/sync?trigger=scheduler` so Cloud Run syncs daily even when scaled to zero.
 
