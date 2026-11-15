@@ -30,8 +30,8 @@
 - [x] ~~Configure `sa-cdr-tracking` service account (`GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` for local dev; `--service-account` and `--set-env-vars` in `cloudbuild.yaml` for Cloud Run).~~
 - [x] ~~Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.~~
 - [x] ~~Create a dedicated Questrade API token for prod, store `MARKET_DATA_API_KEY` in GCP Secret Manager, and grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor` (`cloudbuild.yaml` already configures `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest`).~~
-- [ ] Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`:
-  - `gcloud artifacts repositories create cdr-tracking-repo --repository-format=docker --location=us-central1 --project=gen-lang-client-0230474681`
+- [x] ~~Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`:~~
+  - ~~`gcloud artifacts repositories create cdr-tracking-repo --repository-format=docker --location=us-central1 --project=gen-lang-client-0230474681`~~
 - [ ] Build & deploy with Cloud Build and verify the live `/health` endpoint:
   - `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`
   - *(Note: If Cloud Build's deploy step asks for impersonation permissions, grant the Cloud Build service account `roles/iam.serviceAccountUser` on `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com`.)*
