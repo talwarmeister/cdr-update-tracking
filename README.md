@@ -2,6 +2,8 @@
 
 Full-stack web application to automatically track newly listed and updated **Canadian Depositary Receipts (CDRs)** from **CIBC** and **BMO**, persist historical state in **Google Cloud BigQuery**, and display live **CAD market quotes** from **Questrade**.
 
+**Live Production App:** https://cdrtracker.cloud.run/
+
 ---
 
 ## Features
@@ -164,4 +166,4 @@ printf '%s' 'YOUR_NEW_PROD_QUESTRADE_TOKEN' | gcloud secrets create MARKET_DATA_
 gcloud secrets add-iam-policy-binding MARKET_DATA_API_KEY --project=gen-lang-client-0230474681 --member="serviceAccount:sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com" --role="roles/secretmanager.secretAccessor"
 ```
 
-Connect the GitHub repository's `main` branch (`^main$`) to a **Cloud Build Trigger** pointing to `/cloudbuild.yaml` so merges to `main` automatically deploy to Cloud Run.
+Connect the GitHub repository's `main` branch (`^main$`) to a **Cloud Build Trigger** pointing to `/cloudbuild.yaml` so merges to `main` automatically deploy to Cloud Run (**https://cdrtracker.cloud.run/**), and run a daily **Cloud Scheduler** job (`cdr-daily-sync`) calling `POST https://cdrtracker.cloud.run/api/cdrs/sync?trigger=scheduler`.

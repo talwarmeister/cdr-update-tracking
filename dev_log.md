@@ -92,8 +92,16 @@
 
 - **GCP Secret Manager & Cloud Build:** Created `MARKET_DATA_API_KEY` in GCP Secret Manager, granted `sa-cdr-tracking` `roles/secretmanager.secretAccessor`, and updated `cloudbuild.yaml` to mount `--set-secrets MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` on Cloud Run deploy.
 - **Live Quote Polling & Privacy Cleanup:** Updated `frontend/src/App.tsx` and `frontend/src/App.css` with 60-second automatic quote polling when the browser tab is visible, an **Auto 60s** toggle pill, an animated refresh-icon **Live Quote** button for one-time refreshes, and removed the internal BigQuery table identifier from the table footer.
-- **GitHub Actions CI (`.github/workflows/ci.yml`):** Added automated checks running `pytest -v` (Python 3.12) and `npm ci && npm run build` (Node 20) on `main` pushes and pull requests.
+- **GitHub Actions CI (`.github/workflows/ci.yml`):** Added automated checks running `pytest -v` (Python 3.12) and `npm ci && npm run build` (Node 20) on `main` pushes and pull requests (`backend/pytest.ini` sets `pythonpath = .`).
 - **Documentation:** Updated `README.md` with project overview, environment setup, local run/test/build commands, API reference, and GCP Cloud Build CI/CD instructions.
+
+---
+
+## 2026-11-14 — Production Cloud Run Deployment & Cloud Scheduler
+
+- **Cloud Build Auto-Deploy (`^main$`):** Connected `talwarmeister/cdr-update-tracking` (`main`) to a Cloud Build Trigger running `/cloudbuild.yaml` with `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com` and `options: logging: CLOUD_LOGGING_ONLY`.
+- **Live Custom Cloud Run URL (`https://cdrtracker.cloud.run/`):** Deployed to Cloud Run (`us-central1`, `cdr_tracking_prod`) and verified `/`, `/health`, `/api/cdrs` (`228` active CDRs: `144` CIBC + `84` BMO), and `/api/market-data` live Questrade CAD quotes.
+- **Daily Sync Schedule:** Configured Cloud Scheduler HTTP job `cdr-daily-sync` (`0 7 * * *`, `America/Toronto`) targeting `POST https://cdrtracker.cloud.run/api/cdrs/sync?trigger=scheduler`.
 
 
 
