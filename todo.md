@@ -25,7 +25,7 @@
 - [x] ~~Build out the React CDR directory UI in `frontend/src/App.tsx` (alphabetical A–Z index, search, issuer/country/new filters, expandable details, and Sync Now).~~
 - [x] ~~Populate `MARKET_DATA_API_KEY` in `.env`, implement live market data fetching (`httpx`), and display live market quotes in `frontend/src/App.tsx`.~~
 
-## 3. GCP Cloud Run & BigQuery Deployment
+## 3. ~~GCP Cloud Run & BigQuery Deployment~~
 - [x] ~~Create BigQuery datasets `cdr_tracking_dev` (local) and `cdr_tracking_prod` (Cloud Run) in your GCP project.~~
 - [x] ~~Configure `sa-cdr-tracking` service account (`GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` for local dev; `--service-account` and `--set-env-vars` in `cloudbuild.yaml` for Cloud Run).~~
 - [x] ~~Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.~~
@@ -34,9 +34,8 @@
   - ~~`gcloud artifacts repositories create cdr-tracking-repo --repository-format=docker --location=us-central1 --project=gen-lang-client-0230474681`~~
 - [x] ~~Connect GitHub `main` (`^main$`) to a **Cloud Build Trigger** (`/cloudbuild.yaml`) for automatic deployments on merge:~~
   - [x] ~~Ensure `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com` has `roles/run.admin`, `roles/artifactregistry.writer`, `roles/logging.logWriter`, and `roles/iam.serviceAccountUser` (plus `logging: CLOUD_LOGGING_ONLY` in `cloudbuild.yaml`).~~
-- [ ] Run initial Cloud Run deploy (by merging to `main` or running `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`) and verify `/health`, `/api/cdrs`, and `/api/market-data`.
-- [ ] Choose the live app weblink (Cloud Run URL / Custom Domain):
-  - Retrieve the default Cloud Run HTTPS URL (`gcloud run services describe cdr-update-tracking --region=us-central1 --project=gen-lang-client-0230474681 --format="value(status.url)"`), or update `_SERVICE_NAME` in `cloudbuild.yaml` before deploying to change the URL prefix.
-  - *(Optional)* Map a custom domain (e.g., `cdr.yourdomain.com`) in **GCP Console → Cloud Run → Manage Custom Domains / Integrations** and add the DNS records at your domain registrar.
-- [ ] Configure a daily **Cloud Scheduler** HTTP job calling `POST <LIVE_URL>/api/cdrs/sync?trigger=scheduler` so Cloud Run scrapes/syncs daily even when scaled to zero.
+- [x] ~~Run initial Cloud Run deploy (by merging to `main` or running `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`) and verify `/health`, `/api/cdrs`, and `/api/market-data`.~~
+- [x] ~~Choose the live app weblink (Cloud Run URL / Custom Domain):~~
+  - [x] ~~Configured Cloud Run custom URL: `https://cdrtracker.cloud.run/` (verified live `/`, `/health`, `/api/cdrs` with 228 active CDRs, and `/api/market-data`).~~
+- [x] ~~Configure a daily **Cloud Scheduler** HTTP job calling `POST https://cdrtracker.cloud.run/api/cdrs/sync?trigger=scheduler` so Cloud Run scrapes/syncs daily even when scaled to zero.~~
 
