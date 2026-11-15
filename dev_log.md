@@ -84,7 +84,16 @@
 
 - **Rotating OAuth Persistence (`api_tokens`):** Because Questrade uses single-use rotating refresh tokens, `backend/app/services/questrade_auth.py` exchanges `MARKET_DATA_API_KEY` on first boot (or when the seed hash changes) and persists the newest `refresh_token`, `access_token`, `api_server`, and `expires_at` to BigQuery table `api_tokens` via SQL `MERGE`.
 - **Symbol Resolution & Quote Caching:** `backend/app/services/market_data.py` resolves CIBC tickers prioritizing `.TO` (TSX) and BMO tickers prioritizing `.NE` (NEO/Cboe Canada) with `/v1/symbols/search` fallback, then batches Level 1 `/v1/markets/quotes` requests with a 60s TTL cache (`QUOTE_CACHE_TTL_SECONDS`) and automatic single retry on HTTP `401`.
-- **Frontend Quote Integration:** `frontend/src/App.tsx` loads batch CAD prices from `GET /api/market-data`, displays `Price (CAD)` and signed daily `%` change in the table, fetches missing quotes on row expansion via `GET /api/market-data/{symbol}`, and provides a **Refresh Quotes** trigger.
+- **Frontend Quote Integration:** `frontend/src/App.tsx` loads batch CAD prices from `GET /api/market-data`, displays `Price (CAD)` and signed daily `%` change in the table, fetches missing quotes on row expansion via `GET /api/market-data/{symbol}`, and provides a **Live Quote** refresh trigger.
+
+---
+
+## 2026-11-14 — CI/CD, Secret Manager Wiring & UI Refinements
+
+- **GCP Secret Manager & Cloud Build:** Created `MARKET_DATA_API_KEY` in GCP Secret Manager, granted `sa-cdr-tracking` `roles/secretmanager.secretAccessor`, and updated `cloudbuild.yaml` to mount `--set-secrets MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` on Cloud Run deploy.
+- **Live Quote Polling & Privacy Cleanup:** Updated `frontend/src/App.tsx` and `frontend/src/App.css` with 60-second automatic quote polling when the browser tab is visible, an **Auto 60s** toggle pill, an animated refresh-icon **Live Quote** button for one-time refreshes, and removed the internal BigQuery table identifier from the table footer.
+- **GitHub Actions CI (`.github/workflows/ci.yml`):** Added automated checks running `pytest -v` (Python 3.12) and `npm ci && npm run build` (Node 20) on `main` pushes and pull requests.
+- **Documentation:** Updated `README.md` with project overview, environment setup, local run/test/build commands, API reference, and GCP Cloud Build CI/CD instructions.
 
 
 
