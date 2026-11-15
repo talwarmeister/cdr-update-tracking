@@ -47,3 +47,6 @@ steps:
 images:
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE_NAME}:${COMMIT_SHA}"
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+

@@ -32,8 +32,11 @@
 - [x] ~~Create a dedicated Questrade API token for prod, store `MARKET_DATA_API_KEY` in GCP Secret Manager, and grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor` (`cloudbuild.yaml` already configures `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest`).~~
 - [x] ~~Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`:~~
   - ~~`gcloud artifacts repositories create cdr-tracking-repo --repository-format=docker --location=us-central1 --project=gen-lang-client-0230474681`~~
-- [ ] Build & deploy with Cloud Build and verify the live `/health` endpoint:
-  - `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`
-  - *(Note: If Cloud Build's deploy step asks for impersonation permissions, grant the Cloud Build service account `roles/iam.serviceAccountUser` on `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com`.)*
-- [ ] Connect GitHub `main` branch to a **Cloud Build Trigger** (`/cloudbuild.yaml`) for automatic deployments on merge, and configure a daily **Cloud Scheduler** HTTP job calling `POST /api/cdrs/sync?trigger=scheduler` so Cloud Run syncs daily even when scaled to zero.
+- [x] ~~Connect GitHub `main` (`^main$`) to a **Cloud Build Trigger** (`/cloudbuild.yaml`) for automatic deployments on merge:~~
+  - [x] ~~Ensure `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com` has `roles/run.admin`, `roles/artifactregistry.writer`, `roles/logging.logWriter`, and `roles/iam.serviceAccountUser` (plus `logging: CLOUD_LOGGING_ONLY` in `cloudbuild.yaml`).~~
+- [ ] Run initial Cloud Run deploy (by merging to `main` or running `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`) and verify `/health`, `/api/cdrs`, and `/api/market-data`.
+- [ ] Choose the live app weblink (Cloud Run URL / Custom Domain):
+  - Retrieve the default Cloud Run HTTPS URL (`gcloud run services describe cdr-update-tracking --region=us-central1 --project=gen-lang-client-0230474681 --format="value(status.url)"`), or update `_SERVICE_NAME` in `cloudbuild.yaml` before deploying to change the URL prefix.
+  - *(Optional)* Map a custom domain (e.g., `cdr.yourdomain.com`) in **GCP Console → Cloud Run → Manage Custom Domains / Integrations** and add the DNS records at your domain registrar.
+- [ ] Configure a daily **Cloud Scheduler** HTTP job calling `POST <LIVE_URL>/api/cdrs/sync?trigger=scheduler` so Cloud Run scrapes/syncs daily even when scaled to zero.
 
