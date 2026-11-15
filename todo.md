@@ -21,15 +21,19 @@
 
 ## 2. Core Feature Implementation
 - [x] ~~Add `google-cloud-bigquery` to `backend/requirements.txt` and configure `GCP_PROJECT_ID` / `BQ_DATASET` in `backend/app/config.py` and `.env.example`.~~
-- [ ] Implement CDR source tracking / scraping or API integration with BigQuery persistence and in-memory TTL caching in `backend/app/api/routes.py` (or dedicated service modules).
-- [ ] Populate `MARKET_DATA_API_KEY` in `.env` and implement live market data fetching for CDR symbols using `httpx`.
-- [ ] Build out the React UI in `frontend/src/App.tsx` to display newly created CDRs and live market data.
+- [x] ~~Implement CDR source tracking / scraping or API integration with BigQuery persistence and in-memory TTL caching in `backend/app/api/routes.py` (or dedicated service modules).~~
+- [x] ~~Build out the React CDR directory UI in `frontend/src/App.tsx` (alphabetical A–Z index, search, issuer/country/new filters, expandable details, and Sync Now).~~
+- [x] ~~Populate `MARKET_DATA_API_KEY` in `.env`, implement live market data fetching (`httpx`), and display live market quotes in `frontend/src/App.tsx`.~~
 
 ## 3. GCP Cloud Run & BigQuery Deployment
 - [x] ~~Create BigQuery datasets `cdr_tracking_dev` (local) and `cdr_tracking_prod` (Cloud Run) in your GCP project.~~
 - [x] ~~Configure `sa-cdr-tracking` service account (`GOOGLE_APPLICATION_CREDENTIALS=sa-cdr-tracking.json` in `.env` for local dev; `--service-account` and `--set-env-vars` in `cloudbuild.yaml` for Cloud Run).~~
-- [ ] Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.
-- [ ] Store prod `MARKET_DATA_API_KEY` in GCP Secret Manager, grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor`, and add `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest` to `cloudbuild.yaml`.
-- [ ] Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`.
-- [ ] Deploy with `gcloud builds submit --config cloudbuild.yaml` and verify the live `/health` endpoint.
+- [x] ~~Ensure GCP project has Cloud Build, Artifact Registry, Cloud Run, and Secret Manager APIs enabled.~~
+- [x] ~~Create a dedicated Questrade API token for prod, store `MARKET_DATA_API_KEY` in GCP Secret Manager, and grant `sa-cdr-tracking` `roles/secretmanager.secretAccessor` (`cloudbuild.yaml` already configures `--set-secrets=MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest`).~~
+- [ ] Create an Artifact Registry Docker repository matching `_REPOSITORY` (`cdr-tracking-repo`) in `cloudbuild.yaml`:
+  - `gcloud artifacts repositories create cdr-tracking-repo --repository-format=docker --location=us-central1 --project=gen-lang-client-0230474681`
+- [ ] Build & deploy with Cloud Build and verify the live `/health` endpoint:
+  - `gcloud builds submit --config=cloudbuild.yaml --project=gen-lang-client-0230474681 --substitutions=COMMIT_SHA=manual-1`
+  - *(Note: If Cloud Build's deploy step asks for impersonation permissions, grant the Cloud Build service account `roles/iam.serviceAccountUser` on `sa-cdr-tracking@gen-lang-client-0230474681.iam.gserviceaccount.com`.)*
+- [ ] Configure a daily **Cloud Scheduler** HTTP job calling `POST /api/cdrs/sync?trigger=scheduler` so Cloud Run syncs daily even when scaled to zero.
 

@@ -1,3 +1,6 @@
+import asyncio
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -7,8 +10,45 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router as api_router
 from app.config import settings
+from app.services.cdr_sync import sync_cdrs
 
-app = FastAPI(title="CDR Update Tracking API")
+logger = logging.getLogger(__name__)
+
+
+async def _startup_and_daily_sync_loop() -> None:
+    """Run an immediate CDR scrape/compare on startup (or wake from sleep), then daily."""
+    try:
+        await sync_cdrs(trigger="startup")
+    except Exception:
+        logger.exception("Startup CDR sync failed unexpectedly.")
+
+    interval_seconds = max(1, settings.scrape_interval_hours) * 3600
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            await sync_cdrs(trigger="daily")
+        except Exception:
+            logger.exception("Scheduled daily CDR sync failed unexpectedly.")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Manage background startup and daily CDR scraping lifecycle."""
+    sync_task: asyncio.Task[None] | None = None
+    if settings.scrape_on_startup:
+        sync_task = asyncio.create_task(_startup_and_daily_sync_loop())
+    try:
+        yield
+    finally:
+        if sync_task is not None and not sync_task.done():
+            sync_task.cancel()
+            try:
+                await sync_task
+            except asyncio.CancelledError:
+                pass
+
+
+app = FastAPI(title="CDR Update Tracking API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

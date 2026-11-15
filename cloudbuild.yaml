@@ -40,6 +40,8 @@ steps:
         "sa-cdr-tracking@${PROJECT_ID}.iam.gserviceaccount.com",
         "--set-env-vars",
         "ENVIRONMENT=production,GCP_PROJECT_ID=${PROJECT_ID},BQ_DATASET=${_BQ_DATASET},BQ_LOCATION=${_BQ_LOCATION}",
+        "--set-secrets",
+        "MARKET_DATA_API_KEY=MARKET_DATA_API_KEY:latest",
       ]
 
 images:
