@@ -18,6 +18,7 @@
 | `docker-compose.yml` | Local development orchestration with hot-reloading for backend and frontend. |
 | `.env.example` | Template documenting required environment variables without exposing secrets. |
 | `cloudbuild.yaml` | GCP Cloud Build pipeline to build, push to Artifact Registry, and deploy to Cloud Run. |
+| `.github/workflows/ci.yml` | GitHub Actions CI workflow running backend `pytest -v` (Python 3.12) and frontend `npm run build` (Node 20) on pushes/PRs to `main`. |
 
 #### Python Backend (`backend/`)
 | File | Purpose |
