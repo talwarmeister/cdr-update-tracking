@@ -65,6 +65,7 @@ interface MarketQuote {
   bid_price: number | null;
   ask_price: number | null;
   open_price: number | null;
+  prev_close_price: number | null;
   high_price: number | null;
   low_price: number | null;
   volume: number | null;

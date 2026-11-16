@@ -4,8 +4,9 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
@@ -28,6 +29,8 @@ class ResolvedSymbol:
     symbol_id: int
     listing_exchange: str | None
     currency: str | None
+    prev_day_close: float | None = None
+    metadata_date: date | None = None
 
 
 @dataclass(slots=True)
@@ -59,10 +62,26 @@ def _candidate_names(cdr_symbol: str, issuer: str | None = None) -> list[str]:
     return [f"{clean}.TO", f"{clean}.NE"]
 
 
+def _current_market_date() -> date:
+    """Return current date in Eastern Time (with fixed EST fallback if tzdata is absent)."""
+    try:
+        return datetime.now(ZoneInfo("America/Toronto")).date()
+    except ZoneInfoNotFoundError:
+        return datetime.now(timezone(timedelta(hours=-5))).date()
+
+
+def _extract_prev_day_close(item: dict[str, Any]) -> float | None:
+    raw = item.get("prevDayClosePrice")
+    if isinstance(raw, (int, float)) and raw > 0:
+        return float(raw)
+    return None
+
+
 def _pick_best_symbol_match(
     cdr_symbol: str,
     candidates: list[dict[str, Any]],
     issuer: str | None = None,
+    metadata_date: date | None = None,
 ) -> ResolvedSymbol | None:
     clean = cdr_symbol.strip().upper()
     preferred_order = _candidate_names(clean, issuer=issuer)
@@ -81,6 +100,8 @@ def _pick_best_symbol_match(
                 symbol_id=int(matched["symbolId"]),
                 listing_exchange=matched.get("listingExchange"),
                 currency=matched.get("currency"),
+                prev_day_close=_extract_prev_day_close(matched),
+                metadata_date=metadata_date,
             )
 
     for item in candidates:
@@ -98,6 +119,8 @@ def _pick_best_symbol_match(
                 symbol_id=int(item["symbolId"]),
                 listing_exchange=item.get("listingExchange"),
                 currency=item.get("currency"),
+                prev_day_close=_extract_prev_day_close(item),
+                metadata_date=metadata_date,
             )
     return None
 
@@ -131,9 +154,16 @@ async def resolve_cdr_symbols(
     if not unique_symbols:
         return {}
 
+    today_et = _current_market_date()
+
     async with _symbol_lock:
         missing = [sym for sym in unique_symbols if sym not in _resolved_symbols]
-        if missing:
+        stale_metadata = [
+            sym
+            for sym in unique_symbols
+            if sym in _resolved_symbols and _resolved_symbols[sym].metadata_date != today_et
+        ]
+        if missing or stale_metadata:
             session = await get_questrade_session()
             async with httpx.AsyncClient(timeout=15.0) as http_client:
                 for i in range(0, len(missing), _SYMBOL_BATCH_SIZE):
@@ -154,7 +184,10 @@ async def resolve_cdr_symbols(
                     found = resp.json().get("symbols") or []
                     for sym in batch:
                         match = _pick_best_symbol_match(
-                            sym, found, issuer=(issuer_map or {}).get(sym)
+                            sym,
+                            found,
+                            issuer=(issuer_map or {}).get(sym),
+                            metadata_date=today_et,
                         )
                         if match is not None:
                             _resolved_symbols[sym] = match
@@ -170,10 +203,44 @@ async def resolve_cdr_symbols(
                     )
                     search_hits = resp.json().get("symbols") or []
                     match = _pick_best_symbol_match(
-                        sym, search_hits, issuer=(issuer_map or {}).get(sym)
+                        sym,
+                        search_hits,
+                        issuer=(issuer_map or {}).get(sym),
                     )
                     if match is not None:
+                        if match.prev_day_close is not None:
+                            match.metadata_date = today_et
+                        else:
+                            stale_metadata.append(sym)
                         _resolved_symbols[sym] = match
+
+                # Refresh prevDayClosePrice on a new trading day or after /v1/symbols/search fallback.
+                if stale_metadata:
+                    refresh_ids = list(
+                        dict.fromkeys(_resolved_symbols[sym].symbol_id for sym in stale_metadata if sym in _resolved_symbols)
+                    )
+                    by_id: dict[int, dict[str, Any]] = {}
+                    for i in range(0, len(refresh_ids), _SYMBOL_BATCH_SIZE):
+                        batch_ids = refresh_ids[i : i + _SYMBOL_BATCH_SIZE]
+                        resp, session = await _questrade_get(
+                            http_client,
+                            session,
+                            "/v1/symbols",
+                            {"ids": ",".join(str(sid) for sid in batch_ids)},
+                        )
+                        for item in resp.json().get("symbols") or []:
+                            if item.get("symbolId") is not None:
+                                by_id[int(item["symbolId"])] = item
+                    for sym in stale_metadata:
+                        res = _resolved_symbols.get(sym)
+                        if res is None:
+                            continue
+                        item = by_id.get(res.symbol_id)
+                        if item is not None:
+                            prev_close = _extract_prev_day_close(item)
+                            if prev_close is not None:
+                                res.prev_day_close = prev_close
+                        res.metadata_date = today_et
 
         return {sym: _resolved_symbols[sym] for sym in unique_symbols if sym in _resolved_symbols}
 
@@ -181,11 +248,12 @@ async def resolve_cdr_symbols(
 def _normalize_quote(resolved: ResolvedSymbol, raw_quote: dict[str, Any], fetched_at: str) -> dict[str, Any]:
     last_price = raw_quote.get("lastTradePrice")
     open_price = raw_quote.get("openPrice")
+    prev_close = _extract_prev_day_close(raw_quote) or resolved.prev_day_close
     change = None
     change_percent = None
-    if isinstance(last_price, (int, float)) and isinstance(open_price, (int, float)) and open_price > 0:
-        change = round(last_price - open_price, 4)
-        change_percent = round(((last_price - open_price) / open_price) * 100, 2)
+    if isinstance(last_price, (int, float)) and isinstance(prev_close, (int, float)) and prev_close > 0:
+        change = round(last_price - prev_close, 4)
+        change_percent = round(((last_price - prev_close) / prev_close) * 100, 2)
 
     return {
         "symbol": resolved.cdr_symbol,
@@ -197,6 +265,7 @@ def _normalize_quote(resolved: ResolvedSymbol, raw_quote: dict[str, Any], fetche
         "bid_price": raw_quote.get("bidPrice"),
         "ask_price": raw_quote.get("askPrice"),
         "open_price": open_price,
+        "prev_close_price": prev_close,
         "high_price": raw_quote.get("highPrice"),
         "low_price": raw_quote.get("lowPrice"),
         "volume": raw_quote.get("volume"),
